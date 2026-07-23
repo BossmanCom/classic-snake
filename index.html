@@ -27,7 +27,7 @@
       box-shadow: 0 0 0 2px #1e293b, 0 16px 32px rgba(0,0,0,0.45);
       touch-action: none;
     }
-    canvas { display: block; background: #020617; touch-action: none; }
+    canvas { display: block; touch-action: none; }
     #ui {
       margin-top: 10px; display: flex; gap: 12px; font-size: 0.88rem;
       color: #94a3b8; flex-wrap: wrap; justify-content: center; align-items: center;
@@ -54,29 +54,29 @@
       margin-top: 10px; font-size: 0.76rem; color: #475569;
       text-align: center; max-width: 280px; line-height: 1.3;
     }
-    /* Joystick */
     #joystick-zone {
       position: fixed;
-      left: 18px; bottom: 28px;
-      width: 110px; height: 110px;
+      left: 16px; bottom: 26px;
+      width: 120px; height: 120px;
       z-index: 20;
       touch-action: none;
     }
     #joystick-base {
-      width: 110px; height: 110px; border-radius: 50%;
-      background: rgba(30, 41, 59, 0.65);
-      border: 2px solid rgba(148, 163, 184, 0.35);
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(30, 41, 59, 0.7);
+      border: 2px solid rgba(148, 163, 184, 0.4);
       position: relative;
     }
     #joystick-knob {
-      width: 48px; height: 48px; border-radius: 50%;
-      background: rgba(148, 163, 184, 0.85);
-      position: absolute; left: 31px; top: 31px;
-      transition: background 0.1s;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: rgba(148, 163, 184, 0.9);
+      position: absolute; left: 35px; top: 35px;
+      transition: background 0.12s;
       pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
     #joystick-knob.active {
-      background: rgba(74, 222, 128, 0.9);
+      background: rgba(74, 222, 128, 0.95);
     }
   </style>
 </head>
@@ -110,7 +110,6 @@
 
   <div class="hint">Joystick (bottom left) or swipe on the board</div>
 
-  <!-- Virtual Joystick -->
   <div id="joystick-zone">
     <div id="joystick-base">
       <div id="joystick-knob"></div>
@@ -129,7 +128,7 @@
     const knob = document.getElementById('joystick-knob');
     const joyZone = document.getElementById('joystick-zone');
 
-    // Audio
+    // ========== AUDIO ==========
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep(freq, dur, type='square', vol=0.11) {
       if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -149,7 +148,7 @@
       setTimeout(() => playBeep(150, 0.22, 'sawtooth', 0.07), 110);
     }
 
-    // Particles
+    // ========== PARTICLES ==========
     let particles = [];
     function spawnParticles(x, y) {
       for (let i = 0; i < 8; i++) {
@@ -178,21 +177,19 @@
       ctx.globalAlpha = 1;
     }
 
-    // Game constants
+    // ========== GAME ==========
     const GRID = 18;
     const CELL = canvas.width / GRID;
     const BASE_SPEED = 145;
     const MIN_SPEED = 70;
     const SPEED_STEP = 3.2;
 
-    // Skins: [head, body, pattern style]
-    // pattern: 0=flat, 1=stripes, 2=scales, 3=dots, 4=gradient edge
     const skins = [
-      { head: '#4ade80', body: '#22c55e', pattern: 1 }, // green stripes
-      { head: '#38bdf8', body: '#0ea5e9', pattern: 2 }, // blue scales
-      { head: '#c084fc', body: '#a855f7', pattern: 3 }, // purple dots
-      { head: '#fb923c', body: '#f97316', pattern: 1 }, // orange stripes
-      { head: '#f472b6', body: '#ec4899', pattern: 4 }  // pink edge
+      { head: '#4ade80', body: '#22c55e', pattern: 1 },
+      { head: '#38bdf8', body: '#0ea5e9', pattern: 2 },
+      { head: '#c084fc', body: '#a855f7', pattern: 3 },
+      { head: '#fb923c', body: '#f97316', pattern: 1 },
+      { head: '#f472b6', body: '#ec4899', pattern: 4 }
     ];
 
     let currentSkin = 0;
@@ -209,6 +206,57 @@
 
     highscoreEl.textContent = highScore;
 
+    // Pre-generate grass texture
+    const grassCanvas = document.createElement('canvas');
+    grassCanvas.width = canvas.width;
+    grassCanvas.height = canvas.height;
+    const gctx = grassCanvas.getContext('2d');
+
+    function generateGrass() {
+      // Base green
+      gctx.fillStyle = '#14532d';
+      gctx.fillRect(0, 0, grassCanvas.width, grassCanvas.height);
+
+      // Darker patches
+      for (let i = 0; i < 120; i++) {
+        const x = Math.random() * grassCanvas.width;
+        const y = Math.random() * grassCanvas.height;
+        const r = Math.random() * 18 + 8;
+        gctx.fillStyle = `rgba(6, 40, 18, ${Math.random() * 0.25 + 0.1})`;
+        gctx.beginPath();
+        gctx.arc(x, y, r, 0, Math.PI * 2);
+        gctx.fill();
+      }
+
+      // Lighter grass blades / noise
+      for (let i = 0; i < 900; i++) {
+        const x = Math.random() * grassCanvas.width;
+        const y = Math.random() * grassCanvas.height;
+        const h = Math.random() * 5 + 2;
+        gctx.strokeStyle = `rgba(74, 222, 128, ${Math.random() * 0.18 + 0.05})`;
+        gctx.lineWidth = 1;
+        gctx.beginPath();
+        gctx.moveTo(x, y);
+        gctx.lineTo(x + (Math.random()-0.5)*2, y - h);
+        gctx.stroke();
+      }
+
+      // Subtle grid overlay so cells are still readable
+      gctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      gctx.lineWidth = 1;
+      for (let i = 0; i <= GRID; i++) {
+        gctx.beginPath();
+        gctx.moveTo(i * CELL, 0);
+        gctx.lineTo(i * CELL, grassCanvas.height);
+        gctx.stroke();
+        gctx.beginPath();
+        gctx.moveTo(0, i * CELL);
+        gctx.lineTo(grassCanvas.width, i * CELL);
+        gctx.stroke();
+      }
+    }
+    generateGrass();
+
     function getCurrentSpeed() {
       return Math.max(MIN_SPEED, BASE_SPEED - (snake.length-1) * SPEED_STEP);
     }
@@ -224,20 +272,17 @@
       }
     }
 
-    // Draw patterned body segment
     function drawSegment(x, y, isHead, dir) {
       const skin = skins[currentSkin];
       const px = x * CELL;
       const py = y * CELL;
 
-      // Base
       ctx.fillStyle = isHead ? skin.head : skin.body;
       ctx.beginPath();
       ctx.roundRect(px+1, py+1, CELL-2, CELL-2, isHead ? 6 : 5);
       ctx.fill();
 
       if (isHead) {
-        // Eyes
         ctx.fillStyle = '#0f172a';
         const es = 2.7, off = 4.8;
         let e1, e2;
@@ -262,30 +307,28 @@
         return;
       }
 
-      // Body patterns
+      // Patterns
       ctx.save();
       ctx.beginPath();
       ctx.roundRect(px+1, py+1, CELL-2, CELL-2, 5);
       ctx.clip();
 
-      if (skin.pattern === 1) { // stripes
+      if (skin.pattern === 1) {
         ctx.fillStyle = 'rgba(0,0,0,0.18)';
-        for (let i = 0; i < 3; i++) {
-          ctx.fillRect(px + 3 + i*5, py+2, 2.2, CELL-4);
-        }
-      } else if (skin.pattern === 2) { // scales
+        for (let i = 0; i < 3; i++) ctx.fillRect(px + 3 + i*5, py+2, 2.2, CELL-4);
+      } else if (skin.pattern === 2) {
         ctx.fillStyle = 'rgba(255,255,255,0.13)';
         ctx.beginPath();
         ctx.arc(px + CELL*0.35, py + CELL*0.4, 3.2, 0, Math.PI*2);
         ctx.arc(px + CELL*0.65, py + CELL*0.65, 2.8, 0, Math.PI*2);
         ctx.fill();
-      } else if (skin.pattern === 3) { // dots
+      } else if (skin.pattern === 3) {
         ctx.fillStyle = 'rgba(0,0,0,0.2)';
         ctx.beginPath();
         ctx.arc(px + CELL*0.35, py + CELL*0.35, 1.6, 0, Math.PI*2);
         ctx.arc(px + CELL*0.65, py + CELL*0.65, 1.6, 0, Math.PI*2);
         ctx.fill();
-      } else if (skin.pattern === 4) { // edge highlight
+      } else if (skin.pattern === 4) {
         ctx.strokeStyle = 'rgba(255,255,255,0.22)';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(px+3, py+3, CELL-6, CELL-6);
@@ -294,16 +337,8 @@
     }
 
     function draw() {
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Grid
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= GRID; i++) {
-        ctx.beginPath(); ctx.moveTo(i*CELL, 0); ctx.lineTo(i*CELL, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i*CELL); ctx.lineTo(canvas.width, i*CELL); ctx.stroke();
-      }
+      // Grass background
+      ctx.drawImage(grassCanvas, 0, 0);
 
       // Food
       if (food) {
@@ -313,11 +348,10 @@
         ctx.fill();
       }
 
-      // Body (back to front)
+      // Snake
       for (let i = snake.length-1; i >= 1; i--) {
         drawSegment(snake[i].x, snake[i].y, false, direction);
       }
-      // Head
       if (snake.length) drawSegment(snake[0].x, snake[0].y, true, direction);
 
       drawParticles();
@@ -380,7 +414,6 @@
       statusEl.textContent = 'Use joystick or swipe';
       placeFood(); updateSpeedDisplay(); draw();
       clearInterval(gameLoop);
-      // reset knob
       knob.style.transform = 'translate(0,0)';
       knob.classList.remove('active');
     }
@@ -416,11 +449,9 @@
       }
     }
 
-    // Buttons
     pauseBtn.addEventListener('click', togglePause);
     resetBtn.addEventListener('click', reset);
 
-    // Skins
     document.querySelectorAll('.skin-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
@@ -430,7 +461,6 @@
       });
     });
 
-    // Keyboard
     window.addEventListener('keydown', e => {
       const k = e.key.toLowerCase();
       if (k === 'r') { reset(); return; }
@@ -443,10 +473,13 @@
       if (d) setDirection(d);
     });
 
-    // ========== VIRTUAL JOYSTICK (smoothed) ==========
+    // ========== IMPROVED JOYSTICK WITH DEADZONE + SMOOTHING ==========
     let joyActive = false;
     let joyId = null;
-    const maxDist = 32; // max knob travel
+    const maxDist = 36;
+    const deadzone = 14;          // larger deadzone
+    let smoothX = 0, smoothY = 0; // for smoothing
+    const smoothFactor = 0.35;    // lower = smoother / more lag
 
     function joyStart(e) {
       e.preventDefault();
@@ -467,9 +500,7 @@
         for (let touch of e.changedTouches) {
           if (touch.identifier === joyId) { t = touch; break; }
         }
-      } else {
-        t = e;
-      }
+      } else t = e;
       if (!t) return;
 
       const rect = joyZone.getBoundingClientRect();
@@ -480,22 +511,24 @@
       let dy = t.clientY - cy;
       const dist = Math.sqrt(dx*dx + dy*dy);
 
-      // Clamp to max distance (smooth feel)
       if (dist > maxDist) {
         dx = (dx / dist) * maxDist;
         dy = (dy / dist) * maxDist;
       }
 
-      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      // Smooth the knob position
+      smoothX += (dx - smoothX) * smoothFactor;
+      smoothY += (dy - smoothY) * smoothFactor;
 
-      // Convert to direction with deadzone
-      const dead = 10;
-      if (Math.abs(dx) < dead && Math.abs(dy) < dead) return;
+      knob.style.transform = `translate(${smoothX}px, ${smoothY}px)`;
 
-      if (Math.abs(dx) > Math.abs(dy)) {
-        setDirection(dx > 0 ? {x:1,y:0} : {x:-1,y:0});
+      // Direction with deadzone
+      if (Math.abs(smoothX) < deadzone && Math.abs(smoothY) < deadzone) return;
+
+      if (Math.abs(smoothX) > Math.abs(smoothY)) {
+        setDirection(smoothX > 0 ? {x:1,y:0} : {x:-1,y:0});
       } else {
-        setDirection(dy > 0 ? {x:0,y:1} : {x:0,y:-1});
+        setDirection(smoothY > 0 ? {x:0,y:1} : {x:0,y:-1});
       }
     }
 
@@ -506,29 +539,26 @@
         for (let touch of e.changedTouches) {
           if (touch.identifier === joyId) { match = true; break; }
         }
-      } else {
-        match = true;
-      }
+      } else match = true;
       if (!match) return;
 
       joyActive = false;
       joyId = null;
+      smoothX = 0; smoothY = 0;
       knob.style.transform = 'translate(0,0)';
       knob.classList.remove('active');
     }
 
-    // Touch + mouse support for joystick
     joyZone.addEventListener('touchstart', joyStart, {passive:false});
     joyZone.addEventListener('touchmove', joyMove, {passive:false});
     joyZone.addEventListener('touchend', joyEnd, {passive:false});
     joyZone.addEventListener('touchcancel', joyEnd, {passive:false});
-
     joyZone.addEventListener('mousedown', joyStart);
     window.addEventListener('mousemove', joyMove);
     window.addEventListener('mouseup', joyEnd);
 
-    // Also keep swipe on the canvas as backup
-    let swipeX = 0, swipeY = 0, swiped = false;
+    // Swipe backup on canvas
+    let swipeX=0, swipeY=0, swiped=false;
     canvas.addEventListener('touchstart', e => {
       e.preventDefault();
       const t = e.touches[0];
@@ -544,11 +574,8 @@
       const dy = t.clientY - swipeY;
       if (Math.abs(dx) < 22 && Math.abs(dy) < 22) return;
       swiped = true;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        setDirection(dx > 0 ? {x:1,y:0} : {x:-1,y:0});
-      } else {
-        setDirection(dy > 0 ? {x:0,y:1} : {x:0,y:-1});
-      }
+      if (Math.abs(dx) > Math.abs(dy)) setDirection(dx > 0 ? {x:1,y:0} : {x:-1,y:0});
+      else setDirection(dy > 0 ? {x:0,y:1} : {x:0,y:-1});
     }, {passive:false});
 
     canvas.addEventListener('touchend', e => { e.preventDefault(); swiped = false; }, {passive:false});
