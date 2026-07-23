@@ -22,6 +22,7 @@
       justify-content: center;
       overflow: hidden;
       touch-action: none;
+      user-select: none;
     }
 
     h1 {
@@ -47,11 +48,12 @@
     #ui {
       margin-top: 14px;
       display: flex;
-      gap: 22px;
+      gap: 18px;
       font-size: 0.95rem;
       color: #94a3b8;
       flex-wrap: wrap;
       justify-content: center;
+      align-items: center;
     }
 
     #score, #highscore, #speed {
@@ -59,12 +61,26 @@
     }
 
     #status {
-      min-width: 140px;
+      min-width: 130px;
       text-align: center;
     }
 
+    #pauseBtn {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    #pauseBtn:hover {
+      background: #334155;
+    }
+
     .skins {
-      margin-top: 18px;
+      margin-top: 16px;
       display: flex;
       gap: 10px;
       align-items: center;
@@ -95,9 +111,12 @@
     }
 
     .hint {
-      margin-top: 16px;
+      margin-top: 14px;
       font-size: 0.85rem;
       color: #475569;
+      text-align: center;
+      max-width: 320px;
+      line-height: 1.4;
     }
   </style>
 </head>
@@ -112,7 +131,8 @@
     <div>Score: <span id="score">0</span></div>
     <div>Best: <span id="highscore">0</span></div>
     <div>Speed: <span id="speed">1.0x</span></div>
-    <div id="status">Press any arrow to start</div>
+    <div id="status">Press arrow / swipe to start</div>
+    <button id="pauseBtn">Pause</button>
   </div>
 
   <div class="skins">
@@ -124,7 +144,7 @@
     <button class="skin-btn" data-skin="4" style="background: linear-gradient(135deg, #f472b6, #db2777)" title="Pink"></button>
   </div>
 
-  <div class="hint">Arrow keys or WASD to move • R to restart</div>
+  <div class="hint">Arrow keys / WASD or Swipe • P or Pause button • R to restart</div>
 
   <script>
     const canvas = document.getElementById('game');
@@ -133,15 +153,13 @@
     const highscoreEl = document.getElementById('highscore');
     const speedEl = document.getElementById('speed');
     const statusEl = document.getElementById('status');
+    const pauseBtn = document.getElementById('pauseBtn');
 
     // ========== AUDIO ==========
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     function playBeep(frequency, duration, type = 'square', volume = 0.12) {
-      // Resume audio context if suspended (browsers require user interaction first)
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
 
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
@@ -160,15 +178,55 @@
     }
 
     function playEatSound() {
-      // Short happy blip
       playBeep(660, 0.07, 'square', 0.1);
       setTimeout(() => playBeep(880, 0.06, 'square', 0.08), 50);
     }
 
     function playGameOverSound() {
-      // Lower descending tone
       playBeep(220, 0.15, 'sawtooth', 0.1);
       setTimeout(() => playBeep(160, 0.25, 'sawtooth', 0.08), 120);
+    }
+
+    // ========== PARTICLES ==========
+    let particles = [];
+
+    function spawnParticles(x, y, color) {
+      for (let i = 0; i < 10; i++) {
+        particles.push({
+          x: x * CELL + CELL / 2,
+          y: y * CELL + CELL / 2,
+          vx: (Math.random() - 0.5) * 4.5,
+          vy: (Math.random() - 0.5) * 4.5,
+          life: 1,
+          color: color,
+          size: Math.random() * 3 + 1.5
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.035;
+        p.vy += 0.08; // slight gravity
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawParticles() {
+      particles.forEach(p => {
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
     }
 
     // ========== GAME ==========
@@ -197,6 +255,7 @@
     let gameLoop = null;
     let gameOver = false;
     let started = false;
+    let paused = false;
 
     highscoreEl.textContent = highScore;
 
@@ -277,16 +336,16 @@
 
         let eye1, eye2;
 
-        if (direction.x === -1) { // left
+        if (direction.x === -1) {
           eye1 = { x: hx + offset, y: hy + offset };
           eye2 = { x: hx + offset, y: hy + CELL - offset - eyeSize };
-        } else if (direction.y === -1) { // up
+        } else if (direction.y === -1) {
           eye1 = { x: hx + offset, y: hy + offset };
           eye2 = { x: hx + CELL - offset - eyeSize, y: hy + offset };
-        } else if (direction.y === 1) { // down
+        } else if (direction.y === 1) {
           eye1 = { x: hx + offset, y: hy + CELL - offset - eyeSize };
           eye2 = { x: hx + CELL - offset - eyeSize, y: hy + CELL - offset - eyeSize };
-        } else { // right or not moving
+        } else {
           eye1 = { x: hx + CELL - offset - 1, y: hy + offset };
           eye2 = { x: hx + CELL - offset - 1, y: hy + CELL - offset - eyeSize };
         }
@@ -296,17 +355,19 @@
         ctx.arc(eye2.x + eyeSize/2, eye2.y + eyeSize/2, eyeSize/2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Eye highlights
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(eye1.x + eyeSize/2 + 0.6, eye1.y + eyeSize/2 - 0.5, 0.9, 0, Math.PI * 2);
         ctx.arc(eye2.x + eyeSize/2 + 0.6, eye2.y + eyeSize/2 - 0.5, 0.9, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // Particles on top
+      drawParticles();
     }
 
     function update() {
-      if (gameOver || !started) return;
+      if (gameOver || !started || paused) return;
 
       direction = { ...nextDirection };
 
@@ -332,6 +393,7 @@
         score += 10;
         scoreEl.textContent = score;
         playEatSound();
+        spawnParticles(food.x, food.y, '#f43f5e');
 
         if (score > highScore) {
           highScore = score;
@@ -348,6 +410,7 @@
         snake.pop();
       }
 
+      updateParticles();
       draw();
     }
 
@@ -366,7 +429,10 @@
       scoreEl.textContent = '0';
       gameOver = false;
       started = false;
-      statusEl.textContent = 'Press any arrow to start';
+      paused = false;
+      particles = [];
+      pauseBtn.textContent = 'Pause';
+      statusEl.textContent = 'Press arrow / swipe to start';
       placeFood();
       updateSpeedDisplay();
       draw();
@@ -379,6 +445,24 @@
       updateSpeedDisplay();
     }
 
+    function togglePause() {
+      if (!started || gameOver) return;
+
+      paused = !paused;
+      if (paused) {
+        statusEl.textContent = 'Paused';
+        pauseBtn.textContent = 'Resume';
+        clearInterval(gameLoop);
+      } else {
+        statusEl.textContent = 'Playing';
+        pauseBtn.textContent = 'Pause';
+        startLoop();
+      }
+    }
+
+    // Pause button
+    pauseBtn.addEventListener('click', togglePause);
+
     // Skin selection
     document.querySelectorAll('.skin-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -389,12 +473,18 @@
       });
     });
 
-    // Controls
+    // Keyboard
     window.addEventListener('keydown', (e) => {
       const key = e.key.toLowerCase();
 
       if (key === 'r' && gameOver) {
         reset();
+        return;
+      }
+
+      if (key === 'p' || key === ' ') {
+        e.preventDefault();
+        togglePause();
         return;
       }
 
@@ -414,11 +504,56 @@
       if (!started) {
         started = true;
         statusEl.textContent = 'Playing';
-        // Resume audio on first interaction
         if (audioCtx.state === 'suspended') audioCtx.resume();
         startLoop();
       }
     });
+
+    // ========== MOBILE SWIPE ==========
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (gameOver || paused) return;
+
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+
+      // Minimum swipe distance
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+
+      let newDir = null;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal swipe
+        newDir = dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 };
+      } else {
+        // Vertical swipe
+        newDir = dy > 0 ? { x: 0, y: 1 } : { x: 0, y: -1 };
+      }
+
+      // Prevent reverse
+      if (direction.x + newDir.x === 0 && direction.y + newDir.y === 0) return;
+
+      nextDirection = newDir;
+
+      if (!started) {
+        started = true;
+        statusEl.textContent = 'Playing';
+        startLoop();
+      }
+    }, { passive: false });
 
     // Init
     placeFood();
