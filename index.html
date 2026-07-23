@@ -45,24 +45,55 @@
     }
 
     #ui {
-      margin-top: 16px;
+      margin-top: 14px;
       display: flex;
-      gap: 24px;
-      font-size: 1rem;
+      gap: 28px;
+      font-size: 0.95rem;
       color: #94a3b8;
     }
 
-    #score {
+    #score, #speed {
       font-variant-numeric: tabular-nums;
     }
 
     #status {
-      min-width: 120px;
+      min-width: 140px;
       text-align: center;
     }
 
-    .hint {
+    .skins {
       margin-top: 18px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .skins span {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-right: 4px;
+    }
+
+    .skin-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .skin-btn:hover {
+      transform: scale(1.12);
+    }
+
+    .skin-btn.active {
+      border-color: #e2e8f0;
+      transform: scale(1.12);
+    }
+
+    .hint {
+      margin-top: 16px;
       font-size: 0.85rem;
       color: #475569;
     }
@@ -77,15 +108,26 @@
 
   <div id="ui">
     <div>Score: <span id="score">0</span></div>
+    <div>Speed: <span id="speed">1.0x</span></div>
     <div id="status">Press any arrow to start</div>
   </div>
 
-  <div class="hint">Arrow keys or WASD to move</div>
+  <div class="skins">
+    <span>Skin:</span>
+    <button class="skin-btn active" data-skin="0" style="background: linear-gradient(135deg, #4ade80, #16a34a)" title="Classic Green"></button>
+    <button class="skin-btn" data-skin="1" style="background: linear-gradient(135deg, #38bdf8, #0284c7)" title="Sky Blue"></button>
+    <button class="skin-btn" data-skin="2" style="background: linear-gradient(135deg, #c084fc, #7c3aed)" title="Purple"></button>
+    <button class="skin-btn" data-skin="3" style="background: linear-gradient(135deg, #fb923c, #ea580c)" title="Orange"></button>
+    <button class="skin-btn" data-skin="4" style="background: linear-gradient(135deg, #f472b6, #db2777)" title="Pink"></button>
+  </div>
+
+  <div class="hint">Arrow keys or WASD to move • R to restart</div>
 
   <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
+    const speedEl = document.getElementById('speed');
     const statusEl = document.getElementById('status');
 
     // Game settings
@@ -93,10 +135,20 @@
     const CELL = canvas.width / GRID;
 
     // Speed settings
-    const BASE_SPEED = 140;   // starting delay (ms)
-    const MIN_SPEED = 65;     // fastest it can get
-    const SPEED_STEP = 3.5;   // how much faster per segment
+    const BASE_SPEED = 140;
+    const MIN_SPEED = 65;
+    const SPEED_STEP = 3.5;
 
+    // Snake skins [head, body]
+    const skins = [
+      ['#4ade80', '#22c55e'], // Classic Green
+      ['#38bdf8', '#0ea5e9'], // Sky Blue
+      ['#c084fc', '#a855f7'], // Purple
+      ['#fb923c', '#f97316'], // Orange
+      ['#f472b6', '#ec4899']  // Pink
+    ];
+
+    let currentSkin = 0;
     let snake = [{ x: 10, y: 10 }];
     let direction = { x: 0, y: 0 };
     let nextDirection = { x: 0, y: 0 };
@@ -107,9 +159,14 @@
     let started = false;
 
     function getCurrentSpeed() {
-      // Longer snake = lower delay = faster game
       const speed = BASE_SPEED - (snake.length - 1) * SPEED_STEP;
       return Math.max(MIN_SPEED, speed);
+    }
+
+    function updateSpeedDisplay() {
+      const current = getCurrentSpeed();
+      const multiplier = (BASE_SPEED / current).toFixed(1);
+      speedEl.textContent = multiplier + 'x';
     }
 
     function placeFood() {
@@ -151,9 +208,10 @@
       }
 
       // Snake
+      const [headColor, bodyColor] = skins[currentSkin];
       snake.forEach((seg, i) => {
         const isHead = i === 0;
-        ctx.fillStyle = isHead ? '#4ade80' : '#22c55e';
+        ctx.fillStyle = isHead ? headColor : bodyColor;
         ctx.beginPath();
         ctx.roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 4);
         ctx.fill();
@@ -191,9 +249,10 @@
         scoreEl.textContent = score;
         placeFood();
 
-        // Restart loop with new (faster) speed
+        // Restart loop with new speed
         clearInterval(gameLoop);
         gameLoop = setInterval(update, getCurrentSpeed());
+        updateSpeedDisplay();
       } else {
         snake.pop();
       }
@@ -217,6 +276,7 @@
       started = false;
       statusEl.textContent = 'Press any arrow to start';
       placeFood();
+      updateSpeedDisplay();
       draw();
       clearInterval(gameLoop);
     }
@@ -224,7 +284,18 @@
     function startLoop() {
       clearInterval(gameLoop);
       gameLoop = setInterval(update, getCurrentSpeed());
+      updateSpeedDisplay();
     }
+
+    // Skin selection
+    document.querySelectorAll('.skin-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSkin = parseInt(btn.dataset.skin);
+        draw();
+      });
+    });
 
     // Controls
     window.addEventListener('keydown', (e) => {
@@ -258,6 +329,7 @@
 
     // Init
     placeFood();
+    updateSpeedDisplay();
     draw();
   </script>
 </body>
