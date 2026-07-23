@@ -134,16 +134,51 @@
     const speedEl = document.getElementById('speed');
     const statusEl = document.getElementById('status');
 
-    // Game settings
+    // ========== AUDIO ==========
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playBeep(frequency, duration, type = 'square', volume = 0.12) {
+      // Resume audio context if suspended (browsers require user interaction first)
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+
+      gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration);
+    }
+
+    function playEatSound() {
+      // Short happy blip
+      playBeep(660, 0.07, 'square', 0.1);
+      setTimeout(() => playBeep(880, 0.06, 'square', 0.08), 50);
+    }
+
+    function playGameOverSound() {
+      // Lower descending tone
+      playBeep(220, 0.15, 'sawtooth', 0.1);
+      setTimeout(() => playBeep(160, 0.25, 'sawtooth', 0.08), 120);
+    }
+
+    // ========== GAME ==========
     const GRID = 20;
     const CELL = canvas.width / GRID;
 
-    // Speed settings
     const BASE_SPEED = 140;
     const MIN_SPEED = 65;
     const SPEED_STEP = 3.5;
 
-    // Snake skins [head, body]
     const skins = [
       ['#4ade80', '#22c55e'],
       ['#38bdf8', '#0ea5e9'],
@@ -192,7 +227,7 @@
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Subtle grid
+      // Grid
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 1;
       for (let i = 0; i <= GRID; i++) {
@@ -214,7 +249,7 @@
         ctx.fill();
       }
 
-      // Snake body
+      // Body
       const [headColor, bodyColor] = skins[currentSkin];
       for (let i = snake.length - 1; i >= 1; i--) {
         const seg = snake[i];
@@ -224,13 +259,12 @@
         ctx.fill();
       }
 
-      // Snake head with face
+      // Head + face
       if (snake.length > 0) {
         const head = snake[0];
         const hx = head.x * CELL;
         const hy = head.y * CELL;
 
-        // Head shape
         ctx.fillStyle = headColor;
         ctx.beginPath();
         ctx.roundRect(hx + 1, hy + 1, CELL - 2, CELL - 2, 6);
@@ -241,11 +275,8 @@
         const eyeSize = 3.2;
         const offset = 5.5;
 
-        // Default eye positions (facing right)
-        let eye1 = { x: hx + CELL - offset - 1, y: hy + offset };
-        let eye2 = { x: hx + CELL - offset - 1, y: hy + CELL - offset - eyeSize };
+        let eye1, eye2;
 
-        // Adjust eyes based on direction
         if (direction.x === -1) { // left
           eye1 = { x: hx + offset, y: hy + offset };
           eye2 = { x: hx + offset, y: hy + CELL - offset - eyeSize };
@@ -255,10 +286,7 @@
         } else if (direction.y === 1) { // down
           eye1 = { x: hx + offset, y: hy + CELL - offset - eyeSize };
           eye2 = { x: hx + CELL - offset - eyeSize, y: hy + CELL - offset - eyeSize };
-        }
-
-        // If not moving yet, face right
-        if (direction.x === 0 && direction.y === 0) {
+        } else { // right or not moving
           eye1 = { x: hx + CELL - offset - 1, y: hy + offset };
           eye2 = { x: hx + CELL - offset - 1, y: hy + CELL - offset - eyeSize };
         }
@@ -268,7 +296,7 @@
         ctx.arc(eye2.x + eyeSize/2, eye2.y + eyeSize/2, eyeSize/2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Tiny white highlight in eyes
+        // Eye highlights
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(eye1.x + eyeSize/2 + 0.6, eye1.y + eyeSize/2 - 0.5, 0.9, 0, Math.PI * 2);
@@ -288,13 +316,11 @@
       head.x += direction.x;
       head.y += direction.y;
 
-      // Wall collision
       if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
         endGame();
         return;
       }
 
-      // Self collision
       if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
         endGame();
         return;
@@ -302,10 +328,10 @@
 
       snake.unshift(head);
 
-      // Eat food
       if (food && head.x === food.x && head.y === food.y) {
         score += 10;
         scoreEl.textContent = score;
+        playEatSound();
 
         if (score > highScore) {
           highScore = score;
@@ -328,6 +354,7 @@
     function endGame() {
       gameOver = true;
       statusEl.textContent = 'Game Over \u2014 Press R to restart';
+      playGameOverSound();
       clearInterval(gameLoop);
     }
 
@@ -387,6 +414,8 @@
       if (!started) {
         started = true;
         statusEl.textContent = 'Playing';
+        // Resume audio on first interaction
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         startLoop();
       }
     });
