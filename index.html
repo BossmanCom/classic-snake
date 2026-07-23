@@ -47,12 +47,14 @@
     #ui {
       margin-top: 14px;
       display: flex;
-      gap: 28px;
+      gap: 22px;
       font-size: 0.95rem;
       color: #94a3b8;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
-    #score, #speed {
+    #score, #highscore, #speed {
       font-variant-numeric: tabular-nums;
     }
 
@@ -108,6 +110,7 @@
 
   <div id="ui">
     <div>Score: <span id="score">0</span></div>
+    <div>Best: <span id="highscore">0</span></div>
     <div>Speed: <span id="speed">1.0x</span></div>
     <div id="status">Press any arrow to start</div>
   </div>
@@ -127,6 +130,7 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
+    const highscoreEl = document.getElementById('highscore');
     const speedEl = document.getElementById('speed');
     const statusEl = document.getElementById('status');
 
@@ -141,11 +145,11 @@
 
     // Snake skins [head, body]
     const skins = [
-      ['#4ade80', '#22c55e'], // Classic Green
-      ['#38bdf8', '#0ea5e9'], // Sky Blue
-      ['#c084fc', '#a855f7'], // Purple
-      ['#fb923c', '#f97316'], // Orange
-      ['#f472b6', '#ec4899']  // Pink
+      ['#4ade80', '#22c55e'],
+      ['#38bdf8', '#0ea5e9'],
+      ['#c084fc', '#a855f7'],
+      ['#fb923c', '#f97316'],
+      ['#f472b6', '#ec4899']
     ];
 
     let currentSkin = 0;
@@ -154,9 +158,12 @@
     let nextDirection = { x: 0, y: 0 };
     let food = null;
     let score = 0;
+    let highScore = parseInt(localStorage.getItem('snakeHighScore') || '0');
     let gameLoop = null;
     let gameOver = false;
     let started = false;
+
+    highscoreEl.textContent = highScore;
 
     function getCurrentSpeed() {
       const speed = BASE_SPEED - (snake.length - 1) * SPEED_STEP;
@@ -207,15 +214,67 @@
         ctx.fill();
       }
 
-      // Snake
+      // Snake body
       const [headColor, bodyColor] = skins[currentSkin];
-      snake.forEach((seg, i) => {
-        const isHead = i === 0;
-        ctx.fillStyle = isHead ? headColor : bodyColor;
+      for (let i = snake.length - 1; i >= 1; i--) {
+        const seg = snake[i];
+        ctx.fillStyle = bodyColor;
         ctx.beginPath();
-        ctx.roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 4);
+        ctx.roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 5);
         ctx.fill();
-      });
+      }
+
+      // Snake head with face
+      if (snake.length > 0) {
+        const head = snake[0];
+        const hx = head.x * CELL;
+        const hy = head.y * CELL;
+
+        // Head shape
+        ctx.fillStyle = headColor;
+        ctx.beginPath();
+        ctx.roundRect(hx + 1, hy + 1, CELL - 2, CELL - 2, 6);
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = '#0f172a';
+        const eyeSize = 3.2;
+        const offset = 5.5;
+
+        // Default eye positions (facing right)
+        let eye1 = { x: hx + CELL - offset - 1, y: hy + offset };
+        let eye2 = { x: hx + CELL - offset - 1, y: hy + CELL - offset - eyeSize };
+
+        // Adjust eyes based on direction
+        if (direction.x === -1) { // left
+          eye1 = { x: hx + offset, y: hy + offset };
+          eye2 = { x: hx + offset, y: hy + CELL - offset - eyeSize };
+        } else if (direction.y === -1) { // up
+          eye1 = { x: hx + offset, y: hy + offset };
+          eye2 = { x: hx + CELL - offset - eyeSize, y: hy + offset };
+        } else if (direction.y === 1) { // down
+          eye1 = { x: hx + offset, y: hy + CELL - offset - eyeSize };
+          eye2 = { x: hx + CELL - offset - eyeSize, y: hy + CELL - offset - eyeSize };
+        }
+
+        // If not moving yet, face right
+        if (direction.x === 0 && direction.y === 0) {
+          eye1 = { x: hx + CELL - offset - 1, y: hy + offset };
+          eye2 = { x: hx + CELL - offset - 1, y: hy + CELL - offset - eyeSize };
+        }
+
+        ctx.beginPath();
+        ctx.arc(eye1.x + eyeSize/2, eye1.y + eyeSize/2, eyeSize/2, 0, Math.PI * 2);
+        ctx.arc(eye2.x + eyeSize/2, eye2.y + eyeSize/2, eyeSize/2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tiny white highlight in eyes
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(eye1.x + eyeSize/2 + 0.6, eye1.y + eyeSize/2 - 0.5, 0.9, 0, Math.PI * 2);
+        ctx.arc(eye2.x + eyeSize/2 + 0.6, eye2.y + eyeSize/2 - 0.5, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     function update() {
@@ -247,9 +306,15 @@
       if (food && head.x === food.x && head.y === food.y) {
         score += 10;
         scoreEl.textContent = score;
+
+        if (score > highScore) {
+          highScore = score;
+          highscoreEl.textContent = highScore;
+          localStorage.setItem('snakeHighScore', highScore);
+        }
+
         placeFood();
 
-        // Restart loop with new speed
         clearInterval(gameLoop);
         gameLoop = setInterval(update, getCurrentSpeed());
         updateSpeedDisplay();
@@ -315,7 +380,6 @@
 
       if (!newDir) return;
 
-      // Prevent reversing into yourself
       if (direction.x + newDir.x === 0 && direction.y + newDir.y === 0) return;
 
       nextDirection = newDir;
