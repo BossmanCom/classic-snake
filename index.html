@@ -89,8 +89,13 @@
     const statusEl = document.getElementById('status');
 
     // Game settings
-    const GRID = 20;          // 20x20 grid
+    const GRID = 20;
     const CELL = canvas.width / GRID;
+
+    // Speed settings
+    const BASE_SPEED = 140;   // starting delay (ms)
+    const MIN_SPEED = 65;     // fastest it can get
+    const SPEED_STEP = 3.5;   // how much faster per segment
 
     let snake = [{ x: 10, y: 10 }];
     let direction = { x: 0, y: 0 };
@@ -100,6 +105,12 @@
     let gameLoop = null;
     let gameOver = false;
     let started = false;
+
+    function getCurrentSpeed() {
+      // Longer snake = lower delay = faster game
+      const speed = BASE_SPEED - (snake.length - 1) * SPEED_STEP;
+      return Math.max(MIN_SPEED, speed);
+    }
 
     function placeFood() {
       while (true) {
@@ -114,7 +125,6 @@
     }
 
     function draw() {
-      // Clear
       ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -153,7 +163,6 @@
     function update() {
       if (gameOver || !started) return;
 
-      // Apply next direction (prevents instant reverse)
       direction = { ...nextDirection };
 
       if (direction.x === 0 && direction.y === 0) return;
@@ -181,6 +190,10 @@
         score += 10;
         scoreEl.textContent = score;
         placeFood();
+
+        // Restart loop with new (faster) speed
+        clearInterval(gameLoop);
+        gameLoop = setInterval(update, getCurrentSpeed());
       } else {
         snake.pop();
       }
@@ -190,7 +203,7 @@
 
     function endGame() {
       gameOver = true;
-      statusEl.textContent = 'Game Over — Press R to restart';
+      statusEl.textContent = 'Game Over \u2014 Press R to restart';
       clearInterval(gameLoop);
     }
 
@@ -210,7 +223,7 @@
 
     function startLoop() {
       clearInterval(gameLoop);
-      gameLoop = setInterval(update, 100); // 10 fps feel — classic speed
+      gameLoop = setInterval(update, getCurrentSpeed());
     }
 
     // Controls
