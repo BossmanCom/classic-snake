@@ -1,12 +1,9 @@
 # Classic Snake
 
-A clean, no-nonsense Snake game built with HTML5 Canvas.
+Standalone copy. **Play the fox version in [Ani's Arcade](https://bossmancom.github.io/anis-arcade/).**
 
-Focus is on tight controls and solid feel first. Skins and extras come later.
+Clean HTML5 Canvas Snake. This repo stays up so old Pages links do not die. New work goes in `anis-arcade`.
 
 ## Controls
 - Arrow keys or WASD to move
 - R to restart after Game Over
-
-## Run
-Open `index.html` with Live Server (or any local static server).
